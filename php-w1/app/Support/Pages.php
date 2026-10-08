@@ -17,8 +17,10 @@ final class Pages
         return [
             'page' => $page,
             'perPage' => $perPage,
+            'per_page' => $perPage,
             'total' => $total,
             'totalPages' => $totalPages,
+            'total_pages' => $totalPages,
             'items' => JsonShape::camel($items),
             'next' => null,
             'previous' => null,

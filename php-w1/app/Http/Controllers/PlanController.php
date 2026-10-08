@@ -164,6 +164,16 @@ final class PlanController extends Controller
         return response()->json($this->plans->shoppingItems($this->mealieUser($request), $request));
     }
 
+    public function item(Request $request, string $itemId): JsonResponse
+    {
+        $item = $this->plans->shoppingItemById($this->mealieUser($request), $itemId);
+        if ($item === null) {
+            return response()->json(['detail' => 'Not found.'], 404);
+        }
+
+        return response()->json($item);
+    }
+
     public function storeItem(Request $request): JsonResponse
     {
         $payload = $request->all();

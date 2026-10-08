@@ -15,7 +15,12 @@ final class AiController extends Controller
 
     public function settings(Request $request): JsonResponse
     {
-        return response()->json($this->ai->settings($this->mealieUser($request)));
+        $user = $this->mealieUser($request);
+        if ($denied = $this->unlessCanManage($user)) {
+            return $denied;
+        }
+
+        return response()->json($this->ai->settings($user));
     }
 
     public function updateSettings(Request $request): JsonResponse
@@ -35,7 +40,11 @@ final class AiController extends Controller
 
     public function provider(Request $request, string $id): JsonResponse
     {
-        $provider = $this->ai->provider($this->mealieUser($request), $id);
+        $user = $this->mealieUser($request);
+        if ($denied = $this->unlessCanManage($user)) {
+            return $denied;
+        }
+        $provider = $this->ai->provider($user, $id);
 
         return $provider === null
             ? response()->json(['detail' => 'Not found.'], 404)

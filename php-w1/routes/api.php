@@ -26,25 +26,44 @@ Route::post('/auth/oauth/callback', [AuthController::class, 'oauth']);
 Route::post('/auth/token', [AuthController::class, 'token']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
 Route::get('/app/about', [AppController::class, 'about']);
+Route::get('/app/about/startup-info', [AppController::class, 'startup']);
+Route::get('/app/about/theme', [AppController::class, 'theme']);
 Route::get('/app/startup-info', [AppController::class, 'startup']);
 Route::get('/app/theme', [AppController::class, 'theme']);
 Route::post('/users/register', [AccountController::class, 'register']);
 Route::post('/users/forgot-password', [AccountController::class, 'forgotPassword']);
 Route::post('/users/reset-password', [AccountController::class, 'resetPassword']);
+Route::get('/explore/groups/{groupSlug}/recipes/suggestions', [ExploreController::class, 'suggestions']);
 Route::get('/explore/groups/{groupSlug}/recipes', [ExploreController::class, 'recipes']);
 Route::get('/explore/groups/{groupSlug}/recipes/{recipeSlug}', [ExploreController::class, 'recipe']);
 Route::get('/explore/groups/{groupSlug}/organizers/categories', [ExploreController::class, 'categories']);
+Route::get('/explore/groups/{groupSlug}/organizers/categories/{itemId}', [ExploreController::class, 'category']);
 Route::get('/explore/groups/{groupSlug}/organizers/tags', [ExploreController::class, 'tags']);
+Route::get('/explore/groups/{groupSlug}/organizers/tags/{itemId}', [ExploreController::class, 'tag']);
 Route::get('/explore/groups/{groupSlug}/organizers/tools', [ExploreController::class, 'tools']);
+Route::get('/explore/groups/{groupSlug}/organizers/tools/{itemId}', [ExploreController::class, 'tool']);
 Route::get('/explore/groups/{groupSlug}/households', [ExploreController::class, 'households']);
+Route::get('/explore/groups/{groupSlug}/households/{householdSlug}', [ExploreController::class, 'household']);
 Route::get('/explore/groups/{groupSlug}/foods', [ExploreController::class, 'foods']);
+Route::get('/explore/groups/{groupSlug}/foods/{itemId}', [ExploreController::class, 'food']);
+Route::get('/explore/groups/{groupSlug}/cookbooks', [ExploreController::class, 'groupCookbooks']);
 Route::get('/explore/groups/{groupSlug}/households/{householdSlug}/cookbooks', [ExploreController::class, 'cookbooks']);
+Route::get('/utils/download', fn () => response()->json(['detail' => 'Bad Request'], 400));
+Route::get('/validators/recipe', function (Request $request) {
+    $groupId = \App\Support\Guid::hex((string) $request->query('group_id', $request->query('groupId', '')));
+    $slug = \Illuminate\Support\Str::slug((string) $request->query('name', ''));
+    $exists = $groupId !== null && $slug !== ''
+        && \App\Support\MealieDb::table('recipes')->where('group_id', $groupId)->where('slug', $slug)->exists();
+
+    return response()->json(['valid' => ! $exists]);
+});
 Route::get('/recipes/shared/{token}/zip', [RecipeController::class, 'sharedZip']);
 Route::get('/recipes/shared/{token}', [RecipeController::class, 'shared']);
 Route::get('/validators/user/name', fn (Request $request) => response()->json(app(OpsService::class)->validateUnique('users', 'username', (string) $request->query('name', ''))));
 Route::get('/validators/user/email', fn (Request $request) => response()->json(app(OpsService::class)->validateUnique('users', 'email', (string) $request->query('email', ''))));
 Route::get('/validators/group', fn (Request $request) => response()->json(app(OpsService::class)->validateUnique('groups', 'name', (string) $request->query('name', ''))));
 Route::get('/validators/household', fn (Request $request) => response()->json(app(OpsService::class)->validateUnique('households', 'name', (string) $request->query('name', ''))));
+Route::get('/media/recipes/{recipeId}/assets/{fileName}', [MediaController::class, 'recipeAsset']);
 Route::get('/media/recipes/{recipeId}/images/timeline/{eventId}/{fileName}', [MediaController::class, 'timelineImage']);
 Route::get('/media/recipes/{recipeId}/images/{fileName}', [MediaController::class, 'recipeImage']);
 Route::get('/media/users/{userId}/{fileName}', [MediaController::class, 'userImage']);
@@ -54,12 +73,14 @@ Route::middleware('mealie.auth')->group(function () {
 
     Route::get('/users/self', [AccountController::class, 'self']);
     Route::put('/users/self', [AccountController::class, 'updateSelf']);
-    Route::get('/users/api-tokens', [AccountController::class, 'tokens']);
     Route::post('/users/api-tokens', [AccountController::class, 'storeToken']);
     Route::delete('/users/api-tokens/{id}', [AccountController::class, 'destroyToken']);
     Route::put('/households/permissions', [AccountController::class, 'permissions']);
+    Route::get('/users/self/ratings/{recipeId}', [AccountController::class, 'rating']);
     Route::get('/users/self/ratings', [AccountController::class, 'ratings']);
     Route::get('/users/self/favorites', [AccountController::class, 'favorites']);
+    Route::get('/users/{id}/ratings', [AccountController::class, 'ratings']);
+    Route::get('/users/{id}/favorites', [AccountController::class, 'favorites']);
     Route::put('/users/password', [AccountController::class, 'password']);
     Route::post('/users/{id}/image', [AccountController::class, 'uploadImage']);
     Route::post('/users/{id}/ratings/{slug}', [AccountController::class, 'setRating']);
@@ -70,6 +91,8 @@ Route::middleware('mealie.auth')->group(function () {
     Route::get('/groups/preferences', [AccountController::class, 'groupPreferences']);
     Route::put('/groups/preferences', [AccountController::class, 'updateGroupPreferences']);
     Route::get('/groups/members', [AccountController::class, 'groupMembers']);
+    Route::get('/groups/members/{usernameOrId}', [AccountController::class, 'groupMember']);
+    Route::get('/households/self/recipes/{slug}', [RecipeController::class, 'show']);
     Route::get('/households/self', [AccountController::class, 'household']);
     Route::get('/households/members', [AccountController::class, 'householdMembers']);
     Route::get('/households/preferences', [AccountController::class, 'householdPreferences']);
@@ -85,8 +108,18 @@ Route::middleware('mealie.auth')->group(function () {
     Route::post('/recipes/create/ai/stream', [RecipeController::class, 'importAi']);
     Route::post('/recipes/create/html-or-json/stream', [RecipeController::class, 'importDocument']);
     Route::post('/recipes/test-scrape-url', [RecipeController::class, 'testScrape']);
+    Route::get('/recipes/exports', fn () => response()->json(['json' => [], 'zip' => [], 'jinja2' => []]));
+    Route::get('/recipes/{slug}/exports', function (Request $request) {
+        if ($request->query('template_name') === null && $request->query('templateName') === null) {
+            return response()->json(['detail' => [['loc' => ['query', 'template_name'], 'msg' => 'Field required', 'type' => 'missing']]], 422);
+        }
+
+        return response()->json(['detail' => 'Not found.'], 404);
+    });
+    Route::get('/recipes/bulk-actions/export', fn () => response()->json([]));
     Route::post('/recipes/bulk-actions/{action}', [RecipeController::class, 'bulk']);
     Route::get('/recipes/timeline/events', [HouseholdController::class, 'timeline']);
+    Route::get('/recipes/timeline/events/{id}', [HouseholdController::class, 'timelineEvent']);
     Route::post('/recipes/timeline/events', [HouseholdController::class, 'storeTimeline']);
     Route::put('/recipes/timeline/events/{id}', [HouseholdController::class, 'updateTimeline']);
     Route::post('/recipes/timeline/events/{id}/image', [HouseholdController::class, 'uploadTimelineImage']);
@@ -131,6 +164,30 @@ Route::middleware('mealie.auth')->group(function () {
     Route::post('/tools', [CatalogController::class, 'storeTool']);
     Route::put('/tools/{id}', [CatalogController::class, 'updateTool']);
     Route::delete('/tools/{id}', [CatalogController::class, 'destroyTool']);
+    Route::prefix('organizers')->group(function () {
+        Route::get('/categories/empty', [CatalogController::class, 'emptyCategories']);
+        Route::post('/categories/merge', [CatalogController::class, 'mergeCategories']);
+        Route::get('/categories/slug/{slug}', [CatalogController::class, 'categorySlug']);
+        Route::get('/categories', [CatalogController::class, 'categories']);
+        Route::post('/categories', [CatalogController::class, 'storeCategory']);
+        Route::get('/categories/{id}', [CatalogController::class, 'showCategory']);
+        Route::put('/categories/{id}', [CatalogController::class, 'updateCategory']);
+        Route::delete('/categories/{id}', [CatalogController::class, 'destroyCategory']);
+        Route::get('/tags/empty', [CatalogController::class, 'emptyTags']);
+        Route::post('/tags/merge', [CatalogController::class, 'mergeTags']);
+        Route::get('/tags/slug/{slug}', [CatalogController::class, 'tagSlug']);
+        Route::get('/tags', [CatalogController::class, 'tags']);
+        Route::post('/tags', [CatalogController::class, 'storeTag']);
+        Route::get('/tags/{id}', [CatalogController::class, 'showTag']);
+        Route::put('/tags/{id}', [CatalogController::class, 'updateTag']);
+        Route::delete('/tags/{id}', [CatalogController::class, 'destroyTag']);
+        Route::get('/tools/slug/{slug}', [CatalogController::class, 'toolSlug']);
+        Route::get('/tools', [CatalogController::class, 'tools']);
+        Route::post('/tools', [CatalogController::class, 'storeTool']);
+        Route::get('/tools/{id}', [CatalogController::class, 'showTool']);
+        Route::put('/tools/{id}', [CatalogController::class, 'updateTool']);
+        Route::delete('/tools/{id}', [CatalogController::class, 'destroyTool']);
+    });
     Route::post('/foods/merge', [CatalogController::class, 'mergeFoods']);
     Route::get('/foods/{id}', [CatalogController::class, 'showFood']);
     Route::get('/foods', [CatalogController::class, 'foods']);
@@ -145,9 +202,11 @@ Route::middleware('mealie.auth')->group(function () {
     Route::delete('/units/{id}', [CatalogController::class, 'destroyUnit']);
     Route::get('/groups/labels', [CatalogController::class, 'labels']);
     Route::post('/groups/labels', [CatalogController::class, 'storeLabel']);
+    Route::get('/groups/labels/{id}', [CatalogController::class, 'showLabel']);
     Route::put('/groups/labels/{id}', [CatalogController::class, 'updateLabel']);
     Route::delete('/groups/labels/{id}', [CatalogController::class, 'destroyLabel']);
     Route::get('/households/cookbooks', [CatalogController::class, 'cookbooks']);
+    Route::get('/households/cookbooks/{id}', [CatalogController::class, 'cookbook']);
     Route::post('/households/cookbooks', [CatalogController::class, 'storeCookbook']);
     Route::put('/households/cookbooks/{id}', [CatalogController::class, 'updateCookbook']);
     Route::delete('/households/cookbooks/{id}', [CatalogController::class, 'destroyCookbook']);
@@ -216,6 +275,7 @@ Route::middleware('mealie.auth')->group(function () {
     Route::get('/admin/analytics', [OpsController::class, 'analytics']);
     Route::post('/admin/email', [OpsController::class, 'email']);
     Route::get('/households/shopping/items', [PlanController::class, 'items']);
+    Route::get('/households/shopping/items/{itemId}', [PlanController::class, 'item']);
     Route::post('/households/shopping/items/create-bulk', [PlanController::class, 'storeItem']);
     Route::post('/households/shopping/items', [PlanController::class, 'storeItem']);
     Route::put('/households/shopping/items/{itemId}', [PlanController::class, 'updateItem']);
@@ -236,6 +296,7 @@ Route::middleware('mealie.auth')->group(function () {
     Route::post('/groups/migrations', [OpsController::class, 'migration']);
     Route::get('/groups/storage', [OpsController::class, 'storage']);
     Route::get('/groups/households', [OpsController::class, 'households']);
+    Route::get('/groups/households/{slug}', [OpsController::class, 'householdBySlug']);
     Route::post('/groups/households', [OpsController::class, 'storeHousehold']);
     Route::put('/groups/households/{id}', [OpsController::class, 'updateHousehold']);
     Route::delete('/groups/households/{id}', [OpsController::class, 'destroyHousehold']);

@@ -63,6 +63,14 @@ final class CatalogService
         return $row === null ? null : $this->organizer($row, $table);
     }
 
+    public function organizerById(object $user, string $table, string $id): ?array
+    {
+        $hex = Guid::hex($id);
+        $row = $hex ? MealieDb::table($table)->where('group_id', $user->group_id)->where('id', $hex)->first() : null;
+
+        return $row === null ? null : $this->organizer($row, $table);
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
@@ -289,6 +297,27 @@ final class CatalogService
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function label(object $user, string $id): ?array
+    {
+        $hex = Guid::hex($id);
+        $row = $hex
+            ? MealieDb::table('multi_purpose_labels')->where('group_id', $user->group_id)->where('id', $hex)->first()
+            : null;
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id' => Guid::dashed($row->id),
+            'groupId' => Guid::dashed($row->group_id),
+            'name' => $row->name,
+            'color' => $row->color,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function cookbooks(object $user, Request $request): array
@@ -299,6 +328,20 @@ final class CatalogService
         $rows = $builder->orderBy('position')->forPage($query['page'], max($query['perPage'], 1))->get();
 
         return Pages::make($rows->map(fn ($row) => $this->cookbookOut($row))->all(), $query['page'], $query['perPage'], $total);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function cookbook(object $user, string $id): ?array
+    {
+        $hex = Guid::hex($id);
+        if ($hex === null) {
+            return null;
+        }
+        $row = MealieDb::table('cookbooks')->where('id', $hex)->where('group_id', $user->group_id)->first();
+
+        return $row === null ? null : $this->cookbookOut($row);
     }
 
     /**

@@ -14,7 +14,7 @@ final class AuthController extends Controller
 
     public function oauth(): JsonResponse
     {
-        return response()->json(['detail' => 'OIDC is not configured'], 404);
+        return response()->json(['detail' => 'OIDC is not configured'], 500);
     }
 
     public function token(Request $request): JsonResponse

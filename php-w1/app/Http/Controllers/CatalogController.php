@@ -114,6 +114,15 @@ final class CatalogController extends Controller
         return response()->json($this->catalog->labels($this->mealieUser($request), $request));
     }
 
+    public function showLabel(Request $request, string $id): JsonResponse
+    {
+        $label = $this->catalog->label($this->mealieUser($request), $id);
+
+        return $label === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($label);
+    }
+
     public function storeLabel(Request $request): JsonResponse
     {
         return response()->json($this->catalog->createLabel($this->mealieUser($request), $request->all()), 201);
@@ -140,6 +149,15 @@ final class CatalogController extends Controller
     public function cookbooks(Request $request): JsonResponse
     {
         return response()->json($this->catalog->cookbooks($this->mealieUser($request), $request));
+    }
+
+    public function cookbook(Request $request, string $id): JsonResponse
+    {
+        $book = $this->catalog->cookbook($this->mealieUser($request), $id);
+
+        return $book === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($book);
     }
 
     public function storeCookbook(Request $request): JsonResponse
@@ -170,6 +188,11 @@ final class CatalogController extends Controller
         return $this->bySlug($request, 'categories', $slug);
     }
 
+    public function showCategory(Request $request, string $id): JsonResponse
+    {
+        return $this->byId($request, 'categories', $id);
+    }
+
     public function emptyCategories(Request $request): JsonResponse
     {
         return response()->json($this->catalog->emptyOrganizers($this->mealieUser($request), 'categories'));
@@ -195,6 +218,11 @@ final class CatalogController extends Controller
         return $this->bySlug($request, 'tags', $slug);
     }
 
+    public function showTag(Request $request, string $id): JsonResponse
+    {
+        return $this->byId($request, 'tags', $id);
+    }
+
     public function emptyTags(Request $request): JsonResponse
     {
         return response()->json($this->catalog->emptyOrganizers($this->mealieUser($request), 'tags'));
@@ -218,6 +246,11 @@ final class CatalogController extends Controller
     public function toolSlug(Request $request, string $slug): JsonResponse
     {
         return $this->bySlug($request, 'tools', $slug);
+    }
+
+    public function showTool(Request $request, string $id): JsonResponse
+    {
+        return $this->byId($request, 'tools', $id);
     }
 
     public function showFood(Request $request, string $id): JsonResponse
@@ -271,6 +304,15 @@ final class CatalogController extends Controller
     private function bySlug(Request $request, string $table, string $slug): JsonResponse
     {
         $row = $this->catalog->organizerBySlug($this->mealieUser($request), $table, $slug);
+
+        return $row === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($row);
+    }
+
+    private function byId(Request $request, string $table, string $id): JsonResponse
+    {
+        $row = $this->catalog->organizerById($this->mealieUser($request), $table, $id);
 
         return $row === null
             ? response()->json(['detail' => 'Not found.'], 404)

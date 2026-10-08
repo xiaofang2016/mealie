@@ -243,16 +243,14 @@ final class RecipeService
      */
     public function shares(object $user, Request $request): array
     {
-        $query = Pages::query($request);
         $builder = MealieDb::table('recipe_share_tokens')->where('group_id', $user->group_id);
         $recipeId = Guid::hex((string) $request->query('recipe_id', $request->query('recipeId', '')));
         if ($recipeId !== null) {
             $builder->where('recipe_id', $recipeId);
         }
-        $total = (clone $builder)->count();
-        $rows = $builder->orderByDesc('created_at')->forPage($query['page'], max($query['perPage'], 1))->get();
+        $rows = $builder->orderByDesc('created_at')->get();
 
-        return Pages::make($rows->map(fn ($row) => $this->shareOut($row, false))->all(), $query['page'], $query['perPage'], $total);
+        return $rows->map(fn ($row) => $this->shareOut($row, false))->values()->all();
     }
 
     /**

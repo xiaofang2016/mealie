@@ -155,6 +155,22 @@ final class OpsController extends Controller
         return response()->json($this->ops->households($this->mealieUser($request), $request));
     }
 
+    public function householdBySlug(Request $request, string $slug): JsonResponse
+    {
+        $user = $this->mealieUser($request);
+        $row = MealieDb::table('households')->where('group_id', $user->group_id)->where('slug', $slug)->first();
+        if ($row === null) {
+            return response()->json(['detail' => 'Not found.'], 404);
+        }
+
+        return response()->json([
+            'id' => \App\Support\Guid::dashed($row->id),
+            'name' => $row->name,
+            'slug' => $row->slug,
+            'groupId' => \App\Support\Guid::dashed($row->group_id),
+        ]);
+    }
+
     public function storeHousehold(Request $request): JsonResponse
     {
         return response()->json($this->ops->createHousehold($this->mealieUser($request), $request->all()), 201);

@@ -31,6 +31,17 @@ final class MediaController extends Controller
         return $this->file($path, 'image/webp');
     }
 
+    public function recipeAsset(string $recipeId, string $fileName): BinaryFileResponse|Response
+    {
+        if (Guid::hex($recipeId) === null || ! preg_match('/^[A-Za-z0-9._-]+$/', $fileName)) {
+            return response('Not found.', 404);
+        }
+
+        $path = $this->dataDir().'/recipes/'.Guid::dashed($recipeId).'/assets/'.$fileName;
+
+        return $this->file($path, 'application/octet-stream');
+    }
+
     public function userImage(string $userId, string $fileName): BinaryFileResponse|Response
     {
         if (Guid::hex($userId) === null || ! preg_match('/^[A-Za-z0-9._-]+\.webp$/', $fileName)) {

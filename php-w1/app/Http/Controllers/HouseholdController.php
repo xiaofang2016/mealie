@@ -18,6 +18,15 @@ final class HouseholdController extends Controller
         return response()->json($this->households->timeline($this->mealieUser($request), $request));
     }
 
+    public function timelineEvent(Request $request, string $id): JsonResponse
+    {
+        $event = $this->households->timelineEvent($this->mealieUser($request), $id);
+
+        return $event === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($event);
+    }
+
     public function uploadTimelineImage(Request $request, string $id): JsonResponse
     {
         $file = $request->file('image');
