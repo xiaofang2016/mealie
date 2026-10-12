@@ -612,15 +612,15 @@ HTTP *
 status == {{s47}}
 
 POST http://127.0.0.1:9000/api/auth/token
-Content-Type: application/x-www-form-urlencoded
-x=1
+[FormParams]
+x: 1
 HTTP *
 [Captures]
 s48: status
 
 POST {{candidate}}/api/auth/token
-Content-Type: application/x-www-form-urlencoded
-x=1
+[FormParams]
+x: 1
 HTTP *
 [Asserts]
 status == {{s48}}

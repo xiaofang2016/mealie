@@ -52,6 +52,49 @@ final class ExploreController extends Controller
             : response()->json($page);
     }
 
+    public function food(string $groupSlug, string $itemId): JsonResponse
+    {
+        return $this->one($this->explore->food($groupSlug, $itemId));
+    }
+
+    public function category(string $groupSlug, string $itemId): JsonResponse
+    {
+        return $this->one($this->explore->organizerItem($groupSlug, 'categories', $itemId));
+    }
+
+    public function tag(string $groupSlug, string $itemId): JsonResponse
+    {
+        return $this->one($this->explore->organizerItem($groupSlug, 'tags', $itemId));
+    }
+
+    public function tool(string $groupSlug, string $itemId): JsonResponse
+    {
+        return $this->one($this->explore->organizerItem($groupSlug, 'tools', $itemId));
+    }
+
+    public function household(string $groupSlug, string $householdSlug): JsonResponse
+    {
+        return $this->one($this->explore->household($groupSlug, $householdSlug));
+    }
+
+    public function groupCookbooks(Request $request, string $groupSlug): JsonResponse
+    {
+        $page = $this->explore->groupCookbooks($groupSlug, $request);
+
+        return $page === null
+            ? response()->json(['detail' => 'group not found'], 404)
+            : response()->json($page);
+    }
+
+    public function suggestions(Request $request, string $groupSlug): JsonResponse
+    {
+        $page = $this->explore->recipes($groupSlug, $request);
+
+        return $page === null
+            ? response()->json(['detail' => 'group not found'], 404)
+            : response()->json(['items' => $page['items'] ?? []]);
+    }
+
     public function cookbooks(Request $request, string $groupSlug, string $householdSlug): JsonResponse
     {
         $page = $this->explore->cookbooks($groupSlug, $householdSlug, $request);
@@ -68,6 +111,16 @@ final class ExploreController extends Controller
         return $page === null
             ? response()->json(['detail' => 'group not found'], 404)
             : response()->json($page);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $row
+     */
+    private function one(?array $row): JsonResponse
+    {
+        return $row === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($row);
     }
 
     private function organizers(Request $request, string $groupSlug, string $table): JsonResponse

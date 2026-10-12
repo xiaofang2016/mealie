@@ -171,6 +171,24 @@ final class AccountController extends Controller
         return response()->json($this->accounts->members($this->mealieUser($request), 'group', $request));
     }
 
+    public function groupMember(Request $request, string $usernameOrId): JsonResponse
+    {
+        $member = $this->accounts->member($this->mealieUser($request), $usernameOrId);
+
+        return $member === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($member);
+    }
+
+    public function rating(Request $request, string $recipeId): JsonResponse
+    {
+        $rating = $this->accounts->ratingFor($this->mealieUser($request), $recipeId);
+
+        return $rating === null
+            ? response()->json(['detail' => 'Not found.'], 404)
+            : response()->json($rating);
+    }
+
     public function household(Request $request): JsonResponse
     {
         return response()->json($this->accounts->householdSelf($this->mealieUser($request)));
@@ -188,7 +206,12 @@ final class AccountController extends Controller
 
     public function householdMembers(Request $request): JsonResponse
     {
-        return response()->json($this->accounts->members($this->mealieUser($request), 'household', $request));
+        $user = $this->mealieUser($request);
+        if ($denied = $this->unlessCanManage($user)) {
+            return $denied;
+        }
+
+        return response()->json($this->accounts->members($user, 'household', $request));
     }
 
     public function householdStatistics(Request $request): JsonResponse

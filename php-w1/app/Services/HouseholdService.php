@@ -147,6 +147,16 @@ final class HouseholdService
     /**
      * @return array<string, mixed>|null
      */
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function timelineEvent(object $user, string $id): ?array
+    {
+        $row = $this->ownedEvent($user, $id);
+
+        return $row === null ? null : $this->event($row);
+    }
+
     public function updateTimeline(object $user, string $id, array $payload): ?array
     {
         $row = $this->ownedEvent($user, $id);

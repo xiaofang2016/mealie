@@ -169,6 +169,20 @@ final class PlanService
     /**
      * @param  list<string>  $ids
      */
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function shoppingItemById(object $user, string $id): ?array
+    {
+        $hex = Guid::hex($id);
+        if ($hex === null) {
+            return null;
+        }
+        $item = $this->ownedItem($user, $hex);
+
+        return $item === null ? null : $this->shoppingItem($user, $item);
+    }
+
     public function deleteItems(object $user, array $ids): bool
     {
         foreach ($ids as $id) {

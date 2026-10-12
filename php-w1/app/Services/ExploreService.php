@@ -87,7 +87,103 @@ final class ExploreService
      */
     public function foods(string $groupSlug, Request $request): ?array
     {
-        return $this->organizers($groupSlug, 'ingredient_foods', $request);
+        $group = $this->publicGroup($groupSlug);
+        if ($group === null) {
+            return null;
+        }
+        $query = Pages::query($request);
+        $builder = MealieDb::table('ingredient_foods')->where('group_id', $group->id);
+        $total = (clone $builder)->count();
+        $rows = $builder->orderBy('name')->forPage($query['page'], max($query['perPage'], 1))->get();
+
+        return Pages::make($rows->map(fn ($row) => [
+            'id' => Guid::dashed($row->id),
+            'groupId' => Guid::dashed($row->group_id),
+            'name' => $row->name,
+        ])->all(), $query['page'], $query['perPage'], $total);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function food(string $groupSlug, string $itemId): ?array
+    {
+        return $this->rowById($groupSlug, 'ingredient_foods', $itemId, false);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function organizerItem(string $groupSlug, string $table, string $itemId): ?array
+    {
+        return $this->rowById($groupSlug, $table, $itemId, true);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function household(string $groupSlug, string $householdSlug): ?array
+    {
+        $group = $this->publicGroup($groupSlug);
+        if ($group === null) {
+            return null;
+        }
+        $row = MealieDb::table('households')->where('group_id', $group->id)->where('slug', $householdSlug)->first();
+
+        return $row === null ? null : [
+            'id' => Guid::dashed($row->id),
+            'name' => $row->name,
+            'slug' => $row->slug,
+            'groupId' => Guid::dashed($row->group_id),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function groupCookbooks(string $groupSlug, Request $request): ?array
+    {
+        $group = $this->publicGroup($groupSlug);
+        if ($group === null) {
+            return null;
+        }
+        $householdIds = MealieDb::table('households')->where('group_id', $group->id)->pluck('id');
+        $query = Pages::query($request);
+        $builder = MealieDb::table('cookbooks')->whereIn('household_id', $householdIds)->where('public', 1);
+        $total = (clone $builder)->count();
+        $rows = $builder->orderBy('name')->forPage($query['page'], max($query['perPage'], 1))->get();
+
+        return Pages::make($rows->map(fn ($row) => [
+            'id' => Guid::dashed($row->id),
+            'name' => $row->name,
+            'slug' => $row->slug ?? '',
+        ])->all(), $query['page'], $query['perPage'], $total);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function rowById(string $groupSlug, string $table, string $itemId, bool $withSlug): ?array
+    {
+        $group = $this->publicGroup($groupSlug);
+        $hex = Guid::hex($itemId);
+        if ($group === null || $hex === null) {
+            return null;
+        }
+        $row = MealieDb::table($table)->where('group_id', $group->id)->where('id', $hex)->first();
+        if ($row === null) {
+            return null;
+        }
+        $out = [
+            'id' => Guid::dashed($row->id),
+            'groupId' => Guid::dashed($row->group_id),
+            'name' => $row->name,
+        ];
+        if ($withSlug) {
+            $out['slug'] = $row->slug;
+        }
+
+        return $out;
     }
 
     /**

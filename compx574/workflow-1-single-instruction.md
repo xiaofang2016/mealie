@@ -37,7 +37,8 @@ Verification used by the agent, not by a person:
 |---|---|---|
 | Surface completion | PHP routes registered in `php-w1/routes/api.php`, divided by `@router.get/post/put/patch/delete` decorators under `mealie/routes/` | **226 / 236 (96%)** |
 | Behaviour completion | Share of those routes whose behaviour matches the Python handler, not merely the path | **Not 96%.** See the gap list below. A fair reading is that everyday CRUD is largely present, and integrations are partial or absent. |
-| Accuracy | Same database, same JWT, GET the path Python actually serves, compare status and JSON | **11 / 40 (28%)** exact. 9 status mismatches, 20 body mismatches. One route excluded because its body is an unordered sample. |
+| Accuracy, strict JSON | Same database, same JWT, GET the path Python actually serves, compare status and full JSON with `compx574/accuracy_compare.py` | **11 / 40 (28%)** exact, measured 1 Oct 2026. 9 status mismatches, 20 body mismatches. One route excluded because its body is an unordered sample. |
+| Accuracy, shared Hurl | `compx574/hurl/parity.hurl` unchanged. Python on port 9000 is the oracle. The score is candidate requests with no assert failure. Status is compared. Body bytes are not. Eight calls are skipped on both sides. | **263 / 265**, measured 8 Oct 2026 after a later pass on the same `php-w1` tree. The two misses are Python 500 responses. |
 | Test result | `php artisan test` at the end of the run | **17 passed, 77 assertions, 0 failed.** 15 of the 17 tests are Mealie tests (`HealthTest` + 14 in `ApiTest`). Two are the Laravel examples created with the project. |
 | Time | Wall clock from the “do the rest, don’t make me intervene” prompt to the last implementation turn | **About 51 minutes** (20:33–21:24, 1 Oct 2026, Pacific/Auckland). |
 | Human effort during the run | Prompts that reviewed code or chose a design | **None.** Five prompts only said “continue”. |
@@ -98,7 +99,24 @@ The 20 body mismatches fall into a few repeated causes:
 - Sort order. Page 1 of units and labels is a different set of rows (`stalk` vs `can`, `Desserts & Sweet Snacks` vs `Beverages`), so the default order is not the same.
 - Shape. `GET /api/shared/recipes` is a JSON array in Python and a pagination object in PHP. `authMethod` is `Mealie` vs `MEALIE`. Group self omits `aiProviderSettings`. Household list items omit `preferences` and add `group`.
 
-11/40 is the strict score. It is the number to put next to the other workflows. It is not “28% of the backend”: writes, scrapers, mail, backup restore, and OIDC were not in this pass.
+11/40 is the strict JSON score from the first pass. It is not “28% of the backend”: writes, scrapers, mail, backup restore, and OIDC were not in that pass. It is also not the score produced by the shared Hurl file. Do not put the two numbers in the same column.
+
+### Accuracy against the shared Hurl file
+
+Measured on 8 Oct 2026, after `php-w1` was adjusted against `compx574/hurl/parity.hurl`. Python was started with `PRODUCTION=false` on port 9000. PHP was `php artisan serve --host=127.0.0.1 --port=9001`. Both read `dev/data/mealie.db`, copied from `compx574/mealie.db`. Command: `./compx574/hurl/run.sh php-w1 http://127.0.0.1:9001`.
+
+The file sends 273 API calls. Eight are `skip: true` on both sides (backup, clean, purge, webhook rerun, and the two AI create calls). Hurl executed 530 requests, which is 265 oracle/candidate pairs. A candidate endpoint scores only when it has no assert failure. `Failed files: 1` is not the score: one failure fails the file.
+
+**263 / 265.** The two failures:
+
+| Request | Python | PHP |
+|---|---|---|
+| `GET /api/organizers/tools/slug/parity-missing` | 500 | 404 |
+| `GET /api/validators/household` | 500 | 200 |
+
+Both Python 500s come from this database and this process, not from a status the PHP API is meant to copy. The missing tool slug crashes in Python. The household validator crashes in Python and returns a normal body from PHP.
+
+This pass is still status-and-contract, not full JSON. The 11/40 script was not re-run, so that number is unchanged. What this pass did change, enough for the Hurl asserts to pass: admin routes reject a non-admin before body validation; a JSON number and a non-version-4 id return 422; pagination objects include `per_page` and `total_pages`; `authMethod` is `Mealie`; shared recipes are a list; OIDC-not-configured is 500; `GET /api/users/api-tokens` is no longer registered, so it is 405. `php-w1/routes/api.php` now has 272 route entries. The 226 figure above is the count at the end of the first pass.
 
 The PHPUnit run (17 passed) does not measure this. Causes:
 
@@ -154,6 +172,7 @@ Keep it as the baseline. Do not use it as the only workflow. If it is repeated:
 - Transcript: Cursor agent transcript `8d881b98-784a-45be-99ac-14cd03c7dab1`. User timestamps above are from that log.
 - Code: `php-w1/routes/api.php` (226 routes), `php-w1/tests/Feature/ApiTest.php` (14 tests), `php-w1/tests/Feature/HealthTest.php`.
 - Last test command, from `php-w1/`: `php artisan test` → 17 passed, 77 assertions, 1153 ms.
-- Accuracy command, from the repo root, with Python on port 9000 and PHP on port 9001: `uv run python compx574/accuracy_compare.py` → `accuracy=11/40`.
-- Route counts, from the repo root: `rg -c '@router\.(get|post|put|patch|delete)\(' mealie/routes` summed to 236; `rg -c 'Route::(get|post|put|patch|delete)' php-w1/routes/api.php` returned 226.
-- This run was not committed. The assignment asks for commits whose messages name the workflow. That evidence is missing for workflow 1 and should be stated as a gap in the log, not back-filled.
+- Strict JSON command, from the repo root, with Python on port 9000 and PHP on port 9001: `uv run python compx574/accuracy_compare.py` → `accuracy=11/40` on 1 Oct 2026. Not re-run on 8 Oct.
+- Shared Hurl command, from the repo root, same ports: `./compx574/hurl/run.sh php-w1 http://127.0.0.1:9001` on 8 Oct 2026 → 530 requests, 2 assert failures, score **263/265**. The failures are `GET /api/organizers/tools/slug/parity-missing` (Python 500, PHP 404) and `GET /api/validators/household` (Python 500, PHP 200).
+- Route counts, from the repo root: `rg -c '@router\.(get|post|put|patch|delete)\(' mealie/routes` summed to 236. `rg -c 'Route::(get|post|put|patch|delete)' php-w1/routes/api.php` returned 226 at the end of the first pass and 272 after the Hurl pass.
+- Later commits on `mealie-next-backend-rewrite`: `7c7e68598` (the rewrite), `bbd56a53e` (the Hurl file), `9219cc93d` (the shared database), `09b932b65` (the Hurl contract pass). The first pass itself had no commit at the time it finished.

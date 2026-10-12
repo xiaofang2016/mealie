@@ -33,7 +33,7 @@ final class AccountService
             'username' => $user->username,
             'full_name' => $user->full_name,
             'email' => $user->email,
-            'auth_method' => $user->auth_method ?? 'MEALIE',
+            'auth_method' => $this->authMethodValue($user->auth_method ?? 'MEALIE'),
             'admin' => JsonShape::bool($user->admin),
             'group' => $group->name ?? '',
             'household' => $household->name ?? '',
@@ -51,6 +51,16 @@ final class AccountService
             'tokens' => $tokens,
             'cache_key' => $user->cache_key ?? '',
         ]);
+    }
+
+    private function authMethodValue(string $stored): string
+    {
+        return match (strtoupper($stored)) {
+            'MEALIE' => 'Mealie',
+            'LDAP' => 'LDAP',
+            'OIDC' => 'OIDC',
+            default => $stored,
+        };
     }
 
     /**
@@ -196,6 +206,47 @@ final class AccountService
             : $rows->map(fn ($row) => $this->userOut($row))->all();
 
         return Pages::make($items, $query['page'], $query['perPage'], $total);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function member(object $user, string $usernameOrId): ?array
+    {
+        $hex = Guid::hex($usernameOrId);
+        $builder = MealieDb::table('users')->where('group_id', $user->group_id);
+        $row = $hex
+            ? (clone $builder)->where('id', $hex)->first()
+            : $builder->whereRaw('lower(username) = ?', [strtolower($usernameOrId)])->first();
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id' => Guid::dashed($row->id),
+            'groupId' => Guid::dashed($row->group_id),
+            'householdId' => Guid::dashed($row->household_id),
+            'username' => $row->username,
+            'fullName' => $row->full_name,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function ratingFor(object $user, string $recipeId): ?array
+    {
+        $hex = Guid::hex($recipeId);
+        if ($hex === null) {
+            return null;
+        }
+        $row = MealieDb::table('users_to_recipes')->where('user_id', $user->id)->where('recipe_id', $hex)->first();
+
+        return $row === null ? null : [
+            'recipeId' => Guid::dashed($hex),
+            'rating' => $row->rating,
+            'isFavorite' => (int) ($row->is_favorite ?? 0) === 1,
+        ];
     }
 
     public function householdStatistics(object $user): array
