@@ -1,0 +1,24 @@
+Python baseline, measured 16 October 2026 (NZST). Not a 1 October record.
+
+Commit: 929044cf86a1e0710ecef66ba69c9bebd637409f (929044cf8)
+Command: PRODUCTION=false uv run python mealie/app.py
+About: GET /api/app/about → 200, version develop, production false
+
+Database copied in for the run: compx574/mealie.db
+  SHA-256 before startup: f6ec83ac2b14a9924c91fef6ddda2432dce8d32ed21197ae230ab56d5be34468
+  Alembic before startup: 3527efeeec34
+  Alembic after startup:  27621d27c7e1 (structured recipe times; applied by this process)
+  SHA-256 after startup and after Hurl: 63391ae1b5fd82fd1ce62bddb7ef606990dc34b17b9bec52abe9e7cc20babb21
+
+Hurl: ./compx574/hurl/run.sh php-w1 http://127.0.0.1:9000
+  Both sides are this Python process. The file was not edited.
+  Executed requests: 530
+  Failed files: 0
+  Scored pairs: 265/265
+  Duration: 15402 ms
+
+This commit already emits recipeCount and the recipe time-seconds fields, so it is not the oracle used for the 8 October and 11 October scores. Workflow logs that cite snapshot prefix 280e922e are a different file.
+
+The pre-existing dev/data/mealie.db was restored after the run
+  SHA-256: 88ab41a3f8605a6d1e420c2d4efe1653a60607a7de112ad82966cfc69c57a62d
+  Alembic: 27621d27c7e1
